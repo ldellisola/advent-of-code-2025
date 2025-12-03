@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdventOfCode2025.Day1", "Ad
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdventOfCode2025.Day2", "AdventOfCode2025.Day2\AdventOfCode2025.Day2.csproj", "{ABECFC9E-C702-4B52-8EEE-D07C79F7B568}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdventOfCode2025.Day3", "AdventOfCode2025.Day3\AdventOfCode2025.Day3.csproj", "{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,18 @@ Global
 		{ABECFC9E-C702-4B52-8EEE-D07C79F7B568}.Release|x64.Build.0 = Release|Any CPU
 		{ABECFC9E-C702-4B52-8EEE-D07C79F7B568}.Release|x86.ActiveCfg = Release|Any CPU
 		{ABECFC9E-C702-4B52-8EEE-D07C79F7B568}.Release|x86.Build.0 = Release|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Debug|x64.Build.0 = Debug|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Debug|x86.Build.0 = Debug|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Release|x64.ActiveCfg = Release|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Release|x64.Build.0 = Release|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Release|x86.ActiveCfg = Release|Any CPU
+		{D9574CB3-95C5-4ED6-A90F-C8E8E8240B39}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
