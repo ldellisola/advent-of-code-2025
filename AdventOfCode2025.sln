@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdventOfCode2025.Day7", "Ad
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdventOfCode2025.Day8", "AdventOfCode2025.Day8\AdventOfCode2025.Day8.csproj", "{22505CD9-4C3D-4BC2-A811-59688FE80AF9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdventOfCode2025.Day9", "AdventOfCode2025.Day9\AdventOfCode2025.Day9.csproj", "{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -125,6 +127,18 @@ Global
 		{22505CD9-4C3D-4BC2-A811-59688FE80AF9}.Release|x64.Build.0 = Release|Any CPU
 		{22505CD9-4C3D-4BC2-A811-59688FE80AF9}.Release|x86.ActiveCfg = Release|Any CPU
 		{22505CD9-4C3D-4BC2-A811-59688FE80AF9}.Release|x86.Build.0 = Release|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Debug|x64.Build.0 = Debug|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Debug|x86.Build.0 = Debug|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Release|x64.ActiveCfg = Release|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Release|x64.Build.0 = Release|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Release|x86.ActiveCfg = Release|Any CPU
+		{1FCA82A4-556B-4576-BF7C-C2987CE3C6BC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
