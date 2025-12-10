@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Net.Http.Headers;
 using System.Text;
+using Microsoft.Z3;
 
 
 var machines = File.ReadLines("input.txt")
@@ -23,188 +24,251 @@ return;
 static long Part2(Machine[] machines)
 {
     long count = 0;
+
     foreach (var machine in machines)
     {
         Console.WriteLine(machine);
-        
-        
-        // make this an iterator
-        var rootNode = Part2_MakeGraph(machine);
-        count += Part2_CalculateShortestPath(machine,rootNode);
-    }
 
-    return count;
-}
+        var buttonCombinations = machine.ButtonCombinations
+            .Select(t =>
+                Enumerable.Sequence(0, machine.Lights.Length - 1, 1).Select(i => (double)(t.Contains(i) ? 1 : 0)))
+            .SelectMany(t => t)
+            .ToArray();
 
-static long Part2_CalculateShortestPath(Machine machine, IEnumerable<(int distance,Part2_Node node)> graph)
-{
-    using var enumerator = graph.GetEnumerator();
-    
-    while (enumerator.MoveNext())
-    {
-        var (distance, node) = enumerator.Current;
-        Console.WriteLine($"Node {node} at distance {distance}");
-        if (node.Meter.DistanceToZero() == 0)
+
+        var ctx = new Context();
+
+        var opt = ctx.MkOptimize();
+
+        var buttonVars = new IntExpr[machine.ButtonCombinations.Length];
+
+        for (var b = 0; b < machine.ButtonCombinations.Length; b++)
         {
-            Console.WriteLine(distance);
-            return  distance;
+            // set all variables >= 0;
+            buttonVars[b] = ctx.MkIntConst($"b_{b}");
+            opt.Add(ctx.MkGe(buttonVars[b], ctx.MkInt(0)));
         }
-        
-        ArrayPool<int>.Shared.Return(node.Meter.Meter);
-    }
-    
 
-    throw new Exception("fuck");
-}
-
-static IEnumerable<(int distance,Part2_Node node)> Part2_MakeGraph(Machine machine)
-{
-    var buttonCombinations = machine.ButtonCombinations
-        .Select(t => Enumerable.Sequence(0, machine.Lights.Length - 1, 1).Select(i => t.Contains(i) ? 1 : 0 ))
-        .Select(t => t.ToArray())
-        .ToArray();
-    
-    Console.WriteLine("Making graph...");
-    // Dictionary<JoltageMeter, Part2_Node> nodeSet = [];
-    HashSet<string> nodeSet = [];
-    // HashSet<JoltageMeter> nodeSet = [];
-    var rootNode = new Part2_Node(machine.Jolteage);
-    // nodeSet.Add(rootNode.Meter, rootNode);
-    nodeSet.Add(rootNode.Meter.ToString());
-
-    var queue = new PriorityQueue<(int distance,Part2_Node node), int>();
-    queue.Enqueue((0,rootNode), 0);
-    // var queue = new  Queue<Part2_Node>([rootNode]);
-    
-    while (queue.TryDequeue(out var entry, out int _))
-    {
-        var (distanceToStart, node) = entry;
-        
-        for (var i = 0; i < buttonCombinations.Length; i++)
+        for (var j = 0; j < machine.Jolteage.Length; j++)
         {
-            // var nextNode = node.ApplyButton(i,buttonCombinations[i], nodeSet);
-            var nextNode = node.ApplyButton(i,buttonCombinations[i], null!);
-            
-            if (!nextNode.IsOutOfBounds(machine.Jolteage) && nodeSet.Add(nextNode.Meter.ToString()))
+            var terms = new List<ArithExpr>();
+            for (var b = 0; b < machine.ButtonCombinations.Length; b++)
             {
-                queue.Enqueue((distanceToStart + 1, nextNode), nextNode.Meter.DistanceToZero());
+                // convert button presses into terms. 
+                if (machine.ButtonCombinations[b].Contains(j))
+                    terms.Add(buttonVars[b]);
             }
+
+            // convert terms into math formula b0 + b2
+            var se = ctx.MkAdd([..terms]);
+
+            // pick up expected joltage
+            var te = ctx.MkInt(machine.Jolteage[j]);
+
+            // b0 + b2 = 4
+            opt.Add(ctx.MkEq(se, te));
         }
-        yield return entry;
+
+        opt.MkMinimize(ctx.MkAdd([..buttonVars]));
+
+        var status = opt.Check();
+
+        count += Enumerable.Sequence(0, machine.ButtonCombinations.Length, 1)
+            .Sum(t => ((IntNum)opt.Model.Eval(buttonVars[t])).Int);
+
     }
-    
-    // Console.WriteLine("Graph built!");
-    // return rootNode;
-}
-
-
-static long Part1(Machine[] machines)
-{
-    long count = 0;
-    foreach (var machine in machines)
-    {
-        Console.WriteLine(machine);
-        
-        var rootNode = Part1_MakeGraph(machine);
-        count += Part1_CalculateShortestPath(machine,rootNode);
-    }
-
     return count;
+
 }
 
-static long Part1_CalculateShortestPath(Machine machine, Part1_Node root)
-{
-    var queue = new Queue<(int distance,Part1_Node node)>([(0,root)]);
 
-    while (queue.TryDequeue(out var entry))
+
+static long Part2_old(Machine[] machines)
     {
-        var (distance, node) = entry;
-        if (node.Lights.Equivalent(machine.Lights))
+        long count = 0;
+        foreach (var machine in machines)
         {
-            Console.WriteLine(distance);
-            return  distance;
+            Console.WriteLine(machine);
+
+
+            // make this an iterator
+            var rootNode = Part2_MakeGraph(machine);
+            count += Part2_CalculateShortestPath(machine, rootNode);
         }
 
-        foreach (var (_, nextNode) in node.Connections)
-        {
-            queue.Enqueue((distance +1,nextNode));
-        }
+        return count;
     }
 
-    throw new Exception("fuck");
-}
-
-static Part1_Node Part1_MakeGraph(Machine machine)
-{
-    var buttonCombinations = machine.ButtonCombinations
-        .Select(t => Enumerable.Sequence(0, machine.Lights.Length - 1, 1).Select(t.Contains))
-        .Select(t => new BitArray(t.ToArray()))
-        .ToArray();
-        
-    
-    Console.WriteLine("Making graph...");
-    Dictionary<string, Part1_Node> nodeSet = [];
-    var rootNode = new Part1_Node(new BitArray(machine.Lights.Length));
-    nodeSet.Add(rootNode.Lights.AsString(), rootNode);
-    
-    var queue = new  Queue<Part1_Node>([rootNode]);
-
-    while (queue.TryDequeue(out var node))
+    static long Part2_CalculateShortestPath(Machine machine, IEnumerable<(int distance, Part2_Node node)> graph)
     {
-        for (var i = 0; i < buttonCombinations.Length; i++)
+        using var enumerator = graph.GetEnumerator();
+
+        while (enumerator.MoveNext())
         {
-            var nextNode = node.ApplyButton(i,buttonCombinations[i], nodeSet);
-            if (nodeSet.TryAdd(nextNode.Lights.AsString(), nextNode))
+            var (distance, node) = enumerator.Current;
+            Console.WriteLine($"Node {node} at distance {distance}");
+            if (node.Meter.DistanceToZero() == 0)
             {
-                queue.Enqueue(nextNode);
+                Console.WriteLine(distance);
+                return distance;
             }
+
+            ArrayPool<int>.Shared.Return(node.Meter.Meter);
         }
+
+
+        throw new Exception("fuck");
     }
-    
-    Console.WriteLine("Graph built!");
-    return rootNode;
-}
 
-
-static class Extensions
-{
-    extension(BitArray array)
+    static IEnumerable<(int distance, Part2_Node node)> Part2_MakeGraph(Machine machine)
     {
-        public string AsString()
-        {
-            var bld = new StringBuilder(array.Length);
+        var buttonCombinations = machine.ButtonCombinations
+            .Select(t => Enumerable.Sequence(0, machine.Lights.Length - 1, 1).Select(i => t.Contains(i) ? 1 : 0))
+            .Select(t => t.ToArray())
+            .ToArray();
 
-            for (int i = 0; i < array.Length; i++)
+        Console.WriteLine("Making graph...");
+        // Dictionary<JoltageMeter, Part2_Node> nodeSet = [];
+        HashSet<string> nodeSet = [];
+        // HashSet<JoltageMeter> nodeSet = [];
+        var rootNode = new Part2_Node(machine.Jolteage);
+        // nodeSet.Add(rootNode.Meter, rootNode);
+        nodeSet.Add(rootNode.Meter.ToString());
+
+        var queue = new PriorityQueue<(int distance, Part2_Node node), int>();
+        queue.Enqueue((0, rootNode), 0);
+        // var queue = new  Queue<Part2_Node>([rootNode]);
+
+        while (queue.TryDequeue(out var entry, out int _))
+        {
+            var (distanceToStart, node) = entry;
+
+            for (var i = 0; i < buttonCombinations.Length; i++)
             {
-                bld.Append(array[i] switch
+                // var nextNode = node.ApplyButton(i,buttonCombinations[i], nodeSet);
+                var nextNode = node.ApplyButton(i, buttonCombinations[i], null!);
+
+                if (!nextNode.IsOutOfBounds(machine.Jolteage) && nodeSet.Add(nextNode.Meter.ToString()))
                 {
-                    true => '#',
-                    false => '.'
-                });
+                    queue.Enqueue((distanceToStart + 1, nextNode), nextNode.Meter.DistanceToZero());
+                }
             }
-            
 
-            return bld.ToString();
+            yield return entry;
         }
 
-        public bool Equivalent(BitArray other)
-        {
-            if (ReferenceEquals(array, other))
-                return true;
-            
-            if (other.Length != array.Length)
-                return false;
+        // Console.WriteLine("Graph built!");
+        // return rootNode;
+    }
 
-            for (int i = 0; i < array.Length; i++)
+
+    static long Part1(Machine[] machines)
+    {
+        long count = 0;
+        foreach (var machine in machines)
+        {
+            Console.WriteLine(machine);
+
+            var rootNode = Part1_MakeGraph(machine);
+            count += Part1_CalculateShortestPath(machine, rootNode);
+        }
+
+        return count;
+    }
+
+    static long Part1_CalculateShortestPath(Machine machine, Part1_Node root)
+    {
+        var queue = new Queue<(int distance, Part1_Node node)>([(0, root)]);
+
+        while (queue.TryDequeue(out var entry))
+        {
+            var (distance, node) = entry;
+            if (node.Lights.Equivalent(machine.Lights))
             {
-                if (array[i] != other[i])
-                    return false;
+                Console.WriteLine(distance);
+                return distance;
             }
 
-            return true;
+            foreach (var (_, nextNode) in node.Connections)
+            {
+                queue.Enqueue((distance + 1, nextNode));
+            }
+        }
+
+        throw new Exception("fuck");
+    }
+
+    static Part1_Node Part1_MakeGraph(Machine machine)
+    {
+        var buttonCombinations = machine.ButtonCombinations
+            .Select(t => Enumerable.Sequence(0, machine.Lights.Length - 1, 1).Select(t.Contains))
+            .Select(t => new BitArray(t.ToArray()))
+            .ToArray();
+
+
+        Console.WriteLine("Making graph...");
+        Dictionary<string, Part1_Node> nodeSet = [];
+        var rootNode = new Part1_Node(new BitArray(machine.Lights.Length));
+        nodeSet.Add(rootNode.Lights.AsString(), rootNode);
+
+        var queue = new Queue<Part1_Node>([rootNode]);
+
+        while (queue.TryDequeue(out var node))
+        {
+            for (var i = 0; i < buttonCombinations.Length; i++)
+            {
+                var nextNode = node.ApplyButton(i, buttonCombinations[i], nodeSet);
+                if (nodeSet.TryAdd(nextNode.Lights.AsString(), nextNode))
+                {
+                    queue.Enqueue(nextNode);
+                }
+            }
+        }
+
+        Console.WriteLine("Graph built!");
+        return rootNode;
+    }
+
+
+    static class Extensions
+    {
+        extension(BitArray array)
+        {
+            public string AsString()
+            {
+                var bld = new StringBuilder(array.Length);
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    bld.Append(array[i] switch
+                    {
+                        true => '#',
+                        false => '.'
+                    });
+                }
+
+
+                return bld.ToString();
+            }
+
+            public bool Equivalent(BitArray other)
+            {
+                if (ReferenceEquals(array, other))
+                    return true;
+
+                if (other.Length != array.Length)
+                    return false;
+
+                for (int i = 0; i < array.Length; i++)
+                {
+                    if (array[i] != other[i])
+                        return false;
+                }
+
+                return true;
+            }
         }
     }
-}
 
 
 record JoltageMeter(int[] Meter, int Length)
