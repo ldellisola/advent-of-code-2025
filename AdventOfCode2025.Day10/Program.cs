@@ -1,151 +1,394 @@
-﻿
+﻿using System.Buffers;
+using System.Collections;
+using System.Net.Http.Headers;
 using System.Text;
+
 
 var machines = File.ReadLines("input.txt")
     .Select(Machine.Parse)
     .ToArray();
-var comparer = new SetEqualityComparer<int>();
-long count = 0;
-foreach (var machine in machines)
-{
-    Console.WriteLine(machine);
-
-    HashSet<PressRecord> memory = [];
-    
-    while (!machine.AreAllLightsOn())
-    {
-        count++;
-        
-        var offLights = machine.GetLightsInState(false);
-
-        // Do I have a perfect match?
-        var perfectMatch = machine.ButtonCombinations.IndexOf(offLights,comparer);
-
-        if (perfectMatch is not -1 && !memory.Contains(new(machine.LightsState(), perfectMatch)))
-        {
-            memory.Add(machine.PressButton(perfectMatch));
-            continue;
-        }
-        
-        // Hope I get a decent match
-        int bestGuess = -1;
-        for (int i = 0; i < machine.ButtonCombinations.Length; i++)
-        {
-            if ( !memory.Contains(new(machine.LightsState(), i) ) && machine.ButtonCombinations[i].IsProperSubsetOf(offLights))
-            {
-                bestGuess = i;
-                break;
-            }
-        }
-        
-        if (bestGuess is not -1)
-        {
-            memory.Add(machine.PressButton(bestGuess));
-            continue;
-        }
-
-        
-        // Hope I get a decent match
-        int secondBestGuess = -1;
-        for (int i = 0; i < machine.ButtonCombinations.Length; i++)
-        {
-            if (!memory.Contains(new(machine.LightsState(), i) ) && machine.ButtonCombinations[i].IsProperSupersetOf(offLights))
-            {
-                secondBestGuess = i;
-                break;
-            }
-        }
-        
-        if (secondBestGuess is not -1)
-        {
-            memory.Add(machine.PressButton(secondBestGuess));
-            continue;
-        }
 
 
-    }
-}
+
+long count = Part2(machines);
+
+
 
 Console.WriteLine(count);
 
 
 return;
 
-class SetEqualityComparer<T> : IEqualityComparer<HashSet<T>>
+
+static long Part2(Machine[] machines)
 {
-    public bool Equals(HashSet<T>? x, HashSet<T>? y)
+    long count = 0;
+    foreach (var machine in machines)
     {
-        if (ReferenceEquals(x, y)) return true;
-        if (x is null) return false;
-        if (y is null) return false;
-        if (x.GetType() != y.GetType()) return false;
-        return x.SetEquals(y);
+        Console.WriteLine(machine);
+        
+        
+        // make this an iterator
+        var rootNode = Part2_MakeGraph(machine);
+        count += Part2_CalculateShortestPath(machine,rootNode);
     }
 
-    public int GetHashCode(HashSet<T> obj)
-    {
-        return HashCode.Combine(obj.Comparer, obj.Count, obj.Capacity);
-    }
+    return count;
 }
 
-record PressRecord(string LightsBefore, int ButtonsPressed);
-
-record Machine(bool[] Lights, HashSet<int>[] ButtonCombinations, int[] Jolteage)
+static long Part2_CalculateShortestPath(Machine machine, IEnumerable<(int distance,Part2_Node node)> graph)
 {
-    public HashSet<int> GetLightsInState(bool state)
+    using var enumerator = graph.GetEnumerator();
+    
+    while (enumerator.MoveNext())
     {
-        HashSet<int> set = [];
-        for (var i = 0; i < Lights.Length; i++)
+        var (distance, node) = enumerator.Current;
+        Console.WriteLine($"Node {node} at distance {distance}");
+        if (node.Meter.DistanceToZero() == 0)
         {
-            if (Lights[i] == state)
-                set.Add(i);
+            Console.WriteLine(distance);
+            return  distance;
         }
-        return set;
+        
+        ArrayPool<int>.Shared.Return(node.Meter.Meter);
     }
     
 
-    public PressRecord PressButton(int index)
-    {
-        var combination = ButtonCombinations[index];
-        
-        Console.WriteLine($"Pressed: {string.Join(',', combination)}");
+    throw new Exception("fuck");
+}
 
-        var record = new PressRecord(LightsState(), index);
-        
-        foreach (var i in combination) 
-            Lights[i] = !Lights[i];
-        
-        Console.WriteLine(LightsState());
-        return record;
-    }
+static IEnumerable<(int distance,Part2_Node node)> Part2_MakeGraph(Machine machine)
+{
+    var buttonCombinations = machine.ButtonCombinations
+        .Select(t => Enumerable.Sequence(0, machine.Lights.Length - 1, 1).Select(i => t.Contains(i) ? 1 : 0 ))
+        .Select(t => t.ToArray())
+        .ToArray();
+    
+    Console.WriteLine("Making graph...");
+    // Dictionary<JoltageMeter, Part2_Node> nodeSet = [];
+    HashSet<string> nodeSet = [];
+    // HashSet<JoltageMeter> nodeSet = [];
+    var rootNode = new Part2_Node(machine.Jolteage);
+    // nodeSet.Add(rootNode.Meter, rootNode);
+    nodeSet.Add(rootNode.Meter.ToString());
 
-    public bool AreAllLightsOn()
+    var queue = new PriorityQueue<(int distance,Part2_Node node), int>();
+    queue.Enqueue((0,rootNode), 0);
+    // var queue = new  Queue<Part2_Node>([rootNode]);
+    
+    while (queue.TryDequeue(out var entry, out int _))
     {
-        for (int i = 0; i < Lights.Length; i++)
+        var (distanceToStart, node) = entry;
+        
+        for (var i = 0; i < buttonCombinations.Length; i++)
         {
-            if (!Lights[i])
-                return false;
+            // var nextNode = node.ApplyButton(i,buttonCombinations[i], nodeSet);
+            var nextNode = node.ApplyButton(i,buttonCombinations[i], null!);
+            
+            if (!nextNode.IsOutOfBounds(machine.Jolteage) && nodeSet.Add(nextNode.Meter.ToString()))
+            {
+                queue.Enqueue((distanceToStart + 1, nextNode), nextNode.Meter.DistanceToZero());
+            }
         }
-        return true;
+        yield return entry;
+    }
+    
+    // Console.WriteLine("Graph built!");
+    // return rootNode;
+}
+
+
+static long Part1(Machine[] machines)
+{
+    long count = 0;
+    foreach (var machine in machines)
+    {
+        Console.WriteLine(machine);
+        
+        var rootNode = Part1_MakeGraph(machine);
+        count += Part1_CalculateShortestPath(machine,rootNode);
     }
 
-    public string LightsState()
+    return count;
+}
+
+static long Part1_CalculateShortestPath(Machine machine, Part1_Node root)
+{
+    var queue = new Queue<(int distance,Part1_Node node)>([(0,root)]);
+
+    while (queue.TryDequeue(out var entry))
     {
-        var bld = new StringBuilder();
-        bld.Append('[')
-            .Append(Lights.Select(t => t ? '#' : '.').ToArray())
-            .Append(']');
-        return bld.ToString();
+        var (distance, node) = entry;
+        if (node.Lights.Equivalent(machine.Lights))
+        {
+            Console.WriteLine(distance);
+            return  distance;
+        }
+
+        foreach (var (_, nextNode) in node.Connections)
+        {
+            queue.Enqueue((distance +1,nextNode));
+        }
+    }
+
+    throw new Exception("fuck");
+}
+
+static Part1_Node Part1_MakeGraph(Machine machine)
+{
+    var buttonCombinations = machine.ButtonCombinations
+        .Select(t => Enumerable.Sequence(0, machine.Lights.Length - 1, 1).Select(t.Contains))
+        .Select(t => new BitArray(t.ToArray()))
+        .ToArray();
+        
+    
+    Console.WriteLine("Making graph...");
+    Dictionary<string, Part1_Node> nodeSet = [];
+    var rootNode = new Part1_Node(new BitArray(machine.Lights.Length));
+    nodeSet.Add(rootNode.Lights.AsString(), rootNode);
+    
+    var queue = new  Queue<Part1_Node>([rootNode]);
+
+    while (queue.TryDequeue(out var node))
+    {
+        for (var i = 0; i < buttonCombinations.Length; i++)
+        {
+            var nextNode = node.ApplyButton(i,buttonCombinations[i], nodeSet);
+            if (nodeSet.TryAdd(nextNode.Lights.AsString(), nextNode))
+            {
+                queue.Enqueue(nextNode);
+            }
+        }
+    }
+    
+    Console.WriteLine("Graph built!");
+    return rootNode;
+}
+
+
+static class Extensions
+{
+    extension(BitArray array)
+    {
+        public string AsString()
+        {
+            var bld = new StringBuilder(array.Length);
+
+            for (int i = 0; i < array.Length; i++)
+            {
+                bld.Append(array[i] switch
+                {
+                    true => '#',
+                    false => '.'
+                });
+            }
+            
+
+            return bld.ToString();
+        }
+
+        public bool Equivalent(BitArray other)
+        {
+            if (ReferenceEquals(array, other))
+                return true;
+            
+            if (other.Length != array.Length)
+                return false;
+
+            for (int i = 0; i < array.Length; i++)
+            {
+                if (array[i] != other[i])
+                    return false;
+            }
+
+            return true;
+        }
+    }
+}
+
+
+record JoltageMeter(int[] Meter, int Length)
+{
+    public int this[int key] => Meter[key];
+
+    public JoltageMeter Apply(int[] source)
+    {
+        var dest =  ArrayPool<int>.Shared.Rent(Meter.Length);
+        for (int i = 0; i < Length; i++)
+        {
+            dest[i] = Meter[i] - source[i];
+        }
+
+        return this with { Meter = dest };
     }
 
     public override string ToString()
     {
         var bld = new StringBuilder();
-        bld.Append('[')
-            .Append(Lights.Select(t => t ? '#' : '.').ToArray())
-            .Append(']');
-        bld.Append(' ');
+        for (int i = 0; i < Length; i++)
+        {
+            bld.Append(this[i].ToString()).Append(' ');
+        }
 
+        return bld.ToString();
+    }
+
+    public virtual bool Equals(JoltageMeter? other)
+    {
+        if (ReferenceEquals(this, other))
+            return true;
+        if (other is null)
+            return false;
+
+        if (Meter.Length != other.Meter.Length)
+            return false;
+
+        for (int i = 0; i < Length; i++)
+        {
+            if (Meter[i] != other[i])
+                return false;
+        }
+
+        return true;
+    }
+    
+    public virtual bool Equals(int[] other)
+    {
+        if (Meter.Length != other.Length)
+            return false;
+
+        for (int i = 0; i < Length; i++)
+        {
+            if (Meter[i] != other[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    public override int GetHashCode()
+    {
+        var hashcode = new HashCode();
+        for (int i = 0; i < this.Length; i++)
+        {
+            hashcode.Add(Meter[i]);
+        }
+        return hashcode.ToHashCode();
+    }
+
+    public int DistanceToZero()
+    {
+        int distance = 0;
+        for (int i = 0; i < Length; i++)
+        {
+            distance += Meter[i];
+        }
+
+        return distance;
+    }
+}
+
+record Part2_Node(JoltageMeter Meter)
+{
+
+    // public Dictionary<int, Part2_Node> Connections { get; } = [];
+
+    public Part2_Node ApplyButton(int buttonIndex, int[] buttons, Dictionary<JoltageMeter, Part2_Node> nodeSet)
+    {
+        // if (Connections.TryGetValue(buttonIndex, out var nextNode))
+        //    return  nextNode;
+
+        var next = Meter.Apply(buttons);
+
+        // if (!nodeSet.TryGetValue(next, out nextNode)) 
+           var nextNode = new Part2_Node(next);
+        
+        // Connections.TryAdd(buttonIndex, nextNode);
+        return nextNode;
+    }
+
+    public bool IsOutOfBounds(JoltageMeter desiredPowerLevel)
+    {
+        for (int i = 0; i < desiredPowerLevel.Length; i++)
+        {
+            if (Meter[i] < 0)
+                return true;
+        }
+
+        return false;
+    }
+    
+    public virtual bool Equals(Part2_Node? other)
+    {
+        if (ReferenceEquals(this, other))
+            return true;
+        if (other is null)
+            return false;
+
+        return Meter.Equals(other.Meter);
+    }
+
+    public override int GetHashCode()
+    {
+        return Meter.GetHashCode();
+    }
+
+    public override string ToString()
+    {
+        return Meter.ToString();
+    }
+}
+
+record Part1_Node(BitArray Lights)
+{
+
+    public Dictionary<int, Part1_Node> Connections { get; } = [];
+
+    public Part1_Node ApplyButton(int buttonIndex, BitArray buttons, Dictionary<string, Part1_Node> nodeSet)
+    {
+        if (Connections.TryGetValue(buttonIndex, out var nextNode))
+            return  nextNode;
+        
+        var next = new BitArray(Lights).Xor(buttons);
+
+        if (!nodeSet.TryGetValue(next.AsString(), out nextNode)) 
+            nextNode = new Part1_Node(next);
+        
+        Connections.TryAdd(buttonIndex, nextNode);
+        return nextNode;
+    }
+    
+    public virtual bool Equals(Part1_Node? other)
+    {
+        if (ReferenceEquals(this, other))
+            return true;
+        if (other is null)
+            return false;
+
+        return !Lights.Xor(other.Lights).HasAnySet();
+    }
+
+    public override int GetHashCode()
+    {
+        return Lights.GetHashCode();
+    }
+
+    public override string ToString()
+    {
+        return $"{Lights.AsString()} Connections: {Connections.Count}";
+    }
+}
+
+
+
+record Machine(BitArray Lights, HashSet<int>[] ButtonCombinations, JoltageMeter Jolteage){
+
+    public override string ToString()
+    {
+        var bld = new StringBuilder(Lights.AsString())
+            .Append(' ');
+        
+        
         foreach (var buttonCombination in ButtonCombinations)
         {
             bld.Append('(')
@@ -154,18 +397,17 @@ record Machine(bool[] Lights, HashSet<int>[] ButtonCombinations, int[] Jolteage)
         }
 
         bld.Append('{')
-            .AppendJoin(',', Jolteage)
+            .Append(Jolteage)
             .Append('}');
 
         return bld.ToString();
     }
 
     
-    private string initialState = "";
     public static Machine Parse(string line)
     {
         var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var lights = parts[0].Skip(1).SkipLast(1).Select(t => t == '#').ToArray();
+        var lights = new BitArray(parts[0].Skip(1).SkipLast(1).Select(t=> t == '#').ToArray());
 
         var buttonCombinations = parts
             .Skip(1)
@@ -180,12 +422,12 @@ record Machine(bool[] Lights, HashSet<int>[] ButtonCombinations, int[] Jolteage)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(int.Parse)
             .ToArray();
+        
+        var rentedJoltage = ArrayPool<int>.Shared.Rent(joltage.Length);
+        joltage.CopyTo(rentedJoltage);
 
 
-        return new Machine(lights, buttonCombinations, joltage)
-        {
-            initialState = line
-        };
-
+        return new Machine(lights, buttonCombinations, new(rentedJoltage, joltage.Length));
     }
 }
+

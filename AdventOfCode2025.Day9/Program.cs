@@ -1,5 +1,4 @@
 ﻿using System.Collections.Frozen;
-using System.Diagnostics;
 using AdventOfCode2025.Day9;
 
 var input = File.ReadLines("input.txt")
