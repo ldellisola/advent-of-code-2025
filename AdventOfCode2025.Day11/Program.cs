@@ -15,28 +15,18 @@ static long Part2(Dictionary<string, string[]> input)
 {
     const string start = "svr";
     const string end = "out";
-    
-    var nodes = input;
-    Dictionary<string, long> visitedNodes = new(nodes.Count);
+    Dictionary<(string, bool, bool), long> visitedNodes = [];
 
-    FindPathsV2(start, end, false,false,visitedNodes, nodes);
-
-    return visitedNodes[start];
+    return FindPathsV2Naive(start, end, false, false, visitedNodes, input);
 }
 
-
-static (bool visitedFft, bool visitedDac) FindPathsV2(string node, string destination,bool visitedFft, bool visitedDac, Dictionary<string, long> visitedNodes, Dictionary<string, string[]> nodeMap)
+static long FindPathsV2Naive(string node, string destination, bool visitedDac, bool visitedFft, Dictionary<(string, bool, bool), long> visitedNodes, Dictionary<string, string[]> nodeMap)
 {
     if (node == destination)
-    {
-        if (visitedDac && visitedFft)
-            visitedNodes[node] = 1;
-        
-        return (visitedFft, visitedDac);
-    } 
+        return visitedDac && visitedFft ? 1 : 0;
 
-    if (visitedNodes.ContainsKey(node))
-        return (visitedFft, visitedDac);
+    if (visitedNodes.TryGetValue((node, visitedDac, visitedFft), out var value))
+        return value;
 
     visitedDac |= node == "dac";
     visitedFft |= node == "fft";
@@ -44,16 +34,15 @@ static (bool visitedFft, bool visitedDac) FindPathsV2(string node, string destin
     long paths = 0;
     foreach (var nextNode in nodeMap[node])
     {
-        var (nextVisitedFft, nextVisitedDac) =FindPathsV2(nextNode, destination, visitedFft, visitedDac, visitedNodes, nodeMap);
-        if (nextVisitedFft && nextVisitedDac)
-            paths += visitedNodes.GetValueOrDefault(nextNode,0);
+        paths += FindPathsV2Naive(nextNode,destination,visitedDac, visitedFft, visitedNodes, nodeMap);
     }
-    if (paths != 0)
-        visitedNodes[node] = paths;
     
-    return (visitedFft, visitedDac);
+    visitedNodes.TryAdd((node, visitedDac, visitedFft), paths);
 
+    return paths;
 }
+
+
 
 static long Part1(Dictionary<string, string[]> input)
 {
@@ -84,11 +73,6 @@ static void FindPathsV1(string node, string destination, Dictionary<string, long
     }
     visitedNodes[node] = paths;
 }
-
-
-
-
-
 
 
 
